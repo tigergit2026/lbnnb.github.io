@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>游侠 · Wanderer</title>
+<style>
+  /* ── Design tokens ─────────────────────────── */
+  :root {
+    --felt: #1a2a1a;
+    --felt-mid: #1f2f1f;
+    --felt-light: #253525;
+    --wood: #2c1f12;
+    --wood-mid: #3d2b18;
+    --wood-light: #5a3e28;
+    --gold: #c8952a;
+    --gold-bright: #e8b84b;
+    --gold-dim: #7a5a1a;
+    --red-bullet: #d43a2a;
+    --red-bullet-glow: #ff5540;
+    --empty-bullet: #888fa0;
+    --hp-full: #e05050;
+    --hp-empty: #3a2a2a;
+    --card-bg: #1e1812;
+    --card-border: #5a4228;
+    --text-main: #e8dcc8;
+    --text-dim: #8a7a64;
+    --text-gold: #c8952a;
+    --danger: #d43a2a;
+    --safe: #3a9a4a;
+    --radius: 12px;
+    --radius-card: 10px;
+    --shadow-card: 0 4px 16px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.8);
+    --shadow-glow: 0 0 20px rgba(200,149,42,0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Georgia', 'Noto Serif SC', serif;
+    background: var(--felt);
+    color: var(--text-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: 
+      radial-gradient(ellipse 80% 60% at 50% 30%, rgba(44,31,18,0.4) 0%, transparent 70%),
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px),
+      repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Screens ───────────────────────────────── */
+  .screen { 
+    display: none; 
+    position: relative; 
+    z-index: 1; 
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+  /* ── Setup Screen ──────────────────────────── */
+  .logo {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .logo-zh {
+    font-size: clamp(56px, 10vw, 96px);
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--gold-bright);
+    text-shadow: 0 0 40px rgba(232,184,75,0.5), 0 2px 4px rgba(0,0,0,0.8);
+    line-height: 1;
+  }
+  .logo-en {
+    font-size: 16px;
+    letter-spacing: 0.5em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+  .logo-tagline {
+    font-size: 13px;
+    color: var(--gold-dim);
+    margin-top: 6px;
+    font-style: italic;
+    letter-spacing: 0.1em;
+  }
+
+  .setup-panel {
+    background: linear-gradient(160deg, var(--wood-mid) 0%, var(--wood) 100%);
+    border: 1px solid var(--wood-light);
+    border-radius: var(--radius);
+    padding: 36px 40px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: var(--shadow-card);
+  }
+
+  .setup-title {
+    font-size: 14px;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+
+  .player-inputs { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
+
+  .player-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .player-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--gold-dim);
+    color: var(--text-main);
+    font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-weight: bold;
+  }
+
+  .player-input {
+    flex: 1;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--wood-light);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .player-input:focus { border-color: var(--gold); }
+  .player-input::placeholder { color: var(--text-dim); }
+
+  .player-count-ctrl {
+    display: flex; align-items: center; gap: 16px;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+
+  .count-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--gold-dim);
+    background: transparent;
+    color: var(--gold-bright);
+    font-size: 20px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    line-height: 1;
+  }
+  .count-btn:hover { background: var(--gold-dim); }
+  .count-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .count-display {
+    font-size: 32px;
+    color: var(--gold-bright);
+    min-width: 48px;
+    text-align: center;
+    font-weight: bold;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold-bright) 100%);
+    color: var(--wood);
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-family: inherit;
+    font-weight: bold;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(200,149,42,0.4);
+  }
+  .btn-primary:hover { 
+    transform: translateY(-1px); 
+    box-shadow: 0 4px 16px rgba(200,149,42,0.5);
+  }
+  .btn-primary:active { transform: translateY(0); }
+
+  /* ── Game Screen ───────────────────────────── */
+  #gameScreen {
+    justify-content: flex-start;
+    padding: 16px;
+    gap: 16px;
+  }
+
+  /* Turn header */
+  .turn-header {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .turn-info {
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .turn-badge {
+    background: var(--gold);
+    color: var(--wood);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  .current-player-name {
+    font-size: 22px;
+    color: var(--gold-bright);
+    font-weight: bold;
+  }
+
+  .bullet-pool-info {
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align: right;
+  }
+
+  /* Players area */
+  .players-area {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+  }
+
+  .player-card {
+    background: linear-gradient(160deg, var(--wood-mid) 0%, var(--wood) 100%);
+    border: 2px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    min-width: 180px;
+    flex: 1;
+    max-width: 220px;
+    box-shadow: var(--shadow-card);
+    transition: all 0.25s;
+    position: relative;
+    cursor: default;
+  }
+
+  .player-card.is-current {
+    border-color: var(--gold);
+    box-shadow: var(--shadow-card), 0 0 20px rgba(200,149,42,0.25);
+  }
+
+  .player-card.is-dead {
+    opacity: 0.35;
+    filter: grayscale(0.8);
+    pointer-events: none;
+  }
+
+  .player-card.is-target {
+    border-color: var(--danger);
+    box-shadow: var(--shadow-card), 0 0 20px rgba(212,58,42,0.4);
+  }
+
+  .player-card.can-target {
+    cursor: pointer;
+    border-color: rgba(200,149,42,0.5);
+  }
+  .player-card.can-target:hover {
+    border-color: var(--gold);
+    transform: translateY(-2px);
+  }
+
+  .player-card-name {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--text-main);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .you-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    background: var(--gold-dim);
+    color: var(--gold-bright);
+    border-radius: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  .dead-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    background: rgba(100,50,50,0.8);
+    color: #aa5555;
+    border-radius: 10px;
+  }
+
+  /* HP hearts */
+  .hp-row {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 2px;
+  }
+
+  .hp-heart {
+    font-size: 18px;
+    transition: all 0.3s;
+    filter: drop-shadow(0 0 4px rgba(224,80,80,0.6));
+  }
+
+  .hp-heart.empty {
+    opacity: 0.2;
+    filter: none;
+  }
+
+  .hp-text {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 3px;
+  }
+
+  .target-indicator {
+    position: absolute;
+    top: -8px; right: 10px;
+    background: var(--danger);
+    color: white;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+  }
+
+  /* Action area */
+  .action-area {
+    width: 100%;
+    max-width: 900px;
+    background: linear-gradient(160deg, var(--wood-mid) 0%, var(--wood) 100%);
+    border: 1px solid var(--wood-light);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    box-shadow: var(--shadow-card);
+  }
+
+  .action-title {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  /* Phase steps */
+  .phase-steps {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .phase-step {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    background: rgba(0,0,0,0.3);
+    color: var(--text-dim);
+    border: 1px solid transparent;
+    transition: all 0.2s;
+  }
+  .phase-step.active {
+    background: rgba(200,149,42,0.2);
+    color: var(--gold-bright);
+    border-color: var(--gold-dim);
+  }
+  .phase-step.done {
+    background: rgba(58,154,74,0.15);
+    color: var(--safe);
+    border-color: rgba(58,154,74,0.3);
+  }
+
+  /* Bullet pick area */
+  .bullet-pool {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 14px;
+    background: rgba(0,0,0,0.25);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.05);
+    min-height: 54px;
+    align-items: center;
+  }
+
+  .bullet-item {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.15);
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(60,50,40,0.9);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bullet-item::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.15) 0%, transparent 60%);
+  }
+
+  .bullet-item:hover {
+    transform: scale(1.15);
+    border-color: var(--gold);
+    box-shadow: 0 0 12px rgba(200,149,42,0.4);
+  }
+
+  .bullet-item.known-solid {
+    background: radial-gradient(circle at 40% 35%, #e04030, var(--red-bullet));
+    border-color: #ff7060;
+  }
+
+  .bullet-item.known-empty {
+    background: radial-gradient(circle at 40% 35%, #aab0c0, var(--empty-bullet));
+    border-color: #ccccdd;
+  }
+
+  .bullet-item.unknown {
+    background: radial-gradient(circle at 40% 35%, #6a5a4a, #3a2a1a);
+  }
+
+  .bullet-item.selected {
+    border-color: var(--gold-bright);
+    box-shadow: 0 0 16px rgba(232,184,75,0.6);
+    transform: scale(1.1);
+  }
+
+  /* Gun visual */
+  .gun-area {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 16px;
+    padding: 14px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    flex-wrap: wrap;
+  }
+
+  .gun-visual {
+    width: 60px; height: 48px;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  .gun-visual.firing {
+    animation: gunFire 0.4s ease-out;
+  }
+
+  @keyframes gunFire {
+    0% { transform: translateX(0) rotate(0deg); }
+    20% { transform: translateX(-8px) rotate(-5deg); }
+    40% { transform: translateX(6px) rotate(3deg); }
+    60% { transform: translateX(-4px) rotate(-2deg); }
+    100% { transform: translateX(0) rotate(0deg); }
+  }
+
+  .gun-status {
+    flex: 1;
+  }
+
+  .gun-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .gun-bullet-status {
+    font-size: 14px;
+    color: var(--text-main);
+  }
+
+  .gun-target-status {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 3px;
+  }
+
+  /* Buttons */
+  .action-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 1px solid;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  .btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  /* Hit rate selector */
+  .hitrate-section {
+    margin-bottom: 24px;
+  }
+  .hitrate-label {
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .hitrate-options {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  .hitrate-btn {
+    flex: 1;
+    padding: 9px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--wood-light);
+    background: rgba(0,0,0,0.25);
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+    line-height: 1.3;
+  }
+  .hitrate-btn .hr-pct { font-size: 16px; font-weight: bold; display: block; color: var(--text-main); }
+  .hitrate-btn .hr-desc { font-size: 10px; color: var(--text-dim); }
+  .hitrate-btn:hover { border-color: var(--gold-dim); }
+  .hitrate-btn.selected {
+    border-color: var(--gold);
+    background: rgba(200,149,42,0.15);
+    box-shadow: 0 0 10px rgba(200,149,42,0.2);
+  }
+  .hitrate-btn.selected .hr-pct { color: var(--gold-bright); }
+  .hitrate-btn.selected .hr-desc { color: var(--gold-dim); }
+
+  .btn-fire {
+    background: linear-gradient(135deg, #b83020 0%, var(--danger) 100%);
+    border-color: #ff6050;
+    color: white;
+    box-shadow: 0 2px 8px rgba(212,58,42,0.4);
+  }
+  .btn-fire:hover:not(:disabled) { 
+    transform: translateY(-1px); 
+    box-shadow: 0 4px 14px rgba(212,58,42,0.5);
+  }
+
+  .btn-secondary {
+    background: rgba(255,255,255,0.05);
+    border-color: var(--wood-light);
+    color: var(--text-dim);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: rgba(255,255,255,0.1);
+    color: var(--text-main);
+    border-color: var(--gold-dim);
+  }
+
+  /* Hand cards */
+  .hand-area {
+    width: 100%;
+    max-width: 900px;
+  }
+
+  .hand-label {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .hand-cards {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .card-item {
+    background: linear-gradient(160deg, #2a2218 0%, var(--card-bg) 100%);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-card);
+    padding: 14px 16px;
+    width: 160px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: var(--shadow-card);
+    position: relative;
+  }
+
+  .card-item:hover:not(.card-used):not(.card-disabled) {
+    border-color: var(--gold);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-card), 0 8px 20px rgba(200,149,42,0.2);
+  }
+
+  .card-item.card-used {
+    opacity: 0.25;
+    cursor: not-allowed;
+    filter: grayscale(0.9);
+  }
+
+  .card-item.card-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .card-item.card-highlight {
+    border-color: var(--gold-bright);
+    box-shadow: var(--shadow-card), 0 0 16px rgba(232,184,75,0.4);
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: var(--shadow-card), 0 0 16px rgba(232,184,75,0.4); }
+    50% { box-shadow: var(--shadow-card), 0 0 24px rgba(232,184,75,0.7); }
+  }
+
+  .card-icon { font-size: 26px; margin-bottom: 8px; }
+  .card-name { font-size: 13px; font-weight: bold; color: var(--text-main); margin-bottom: 4px; }
+  .card-desc { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+
+  .card-timing {
+    position: absolute;
+    top: 6px; right: 8px;
+    font-size: 9px;
+    color: var(--gold-dim);
+    letter-spacing: 0.1em;
+  }
+
+  /* Log */
+  .log-area {
+    width: 100%;
+    max-width: 900px;
+  }
+
+  .log-box {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 12px 16px;
+    max-height: 120px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--wood-light) transparent;
+  }
+
+  .log-entry {
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 2px 0;
+    line-height: 1.6;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry .log-player { color: var(--gold); }
+  .log-entry .log-action { color: var(--text-main); }
+  .log-entry .log-result-hit { color: var(--red-bullet-glow); font-weight: bold; }
+  .log-entry .log-result-miss { color: var(--empty-bullet); }
+  .log-entry .log-result-heal { color: var(--safe); font-weight: bold; }
+  .log-entry .log-system { color: var(--gold-dim); font-style: italic; }
+
+  /* Result overlay */
+  .result-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+
+  .result-overlay.active { display: flex; }
+
+  .result-card {
+    background: linear-gradient(160deg, var(--wood-mid) 0%, var(--wood) 100%);
+    border: 2px solid var(--gold-dim);
+    border-radius: var(--radius);
+    padding: 36px 48px;
+    text-align: center;
+    max-width: 400px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.8), var(--shadow-glow);
+    animation: resultPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes resultPop {
+    from { transform: scale(0.7); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .result-icon { font-size: 64px; margin-bottom: 16px; }
+  .result-title { font-size: 24px; font-weight: bold; color: var(--gold-bright); margin-bottom: 8px; }
+  .result-desc { font-size: 15px; color: var(--text-main); margin-bottom: 24px; line-height: 1.6; }
+
+  /* Victory screen */
+  #victoryScreen .victory-content {
+    text-align: center;
+    padding: 40px;
+  }
+
+  .victory-trophy { font-size: 80px; margin-bottom: 24px; animation: float 2s ease-in-out infinite; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+
+  .victory-title {
+    font-size: clamp(32px, 6vw, 56px);
+    font-weight: bold;
+    color: var(--gold-bright);
+    text-shadow: 0 0 30px rgba(232,184,75,0.6);
+    margin-bottom: 12px;
+  }
+
+  .victory-sub {
+    font-size: 18px;
+    color: var(--text-dim);
+    margin-bottom: 36px;
+    letter-spacing: 0.1em;
+  }
+
+  /* Notification toast */
+  .toast {
+    position: fixed;
+    top: 20px; left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--wood-mid);
+    border: 1px solid var(--gold-dim);
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-size: 14px;
+    color: var(--text-main);
+    z-index: 200;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+    box-shadow: var(--shadow-card);
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Shield prompt */
+  .shield-prompt {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 150;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(3px);
+  }
+  .shield-prompt.active { display: flex; }
+
+  .shield-card {
+    background: linear-gradient(160deg, var(--wood-mid) 0%, var(--wood) 100%);
+    border: 2px solid #4466aa;
+    border-radius: var(--radius);
+    padding: 32px 40px;
+    text-align: center;
+    max-width: 380px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.8), 0 0 30px rgba(68,102,170,0.3);
+    animation: resultPop 0.3s ease-out;
+  }
+
+  .shield-title { font-size: 22px; font-weight: bold; color: #88aaff; margin-bottom: 10px; }
+  .shield-desc { font-size: 14px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.6; }
+  .shield-buttons { display: flex; gap: 12px; justify-content: center; }
+
+  .btn-shield {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: 1px solid #4466aa;
+    background: rgba(68,102,170,0.2);
+    color: #88aaff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.15s;
+  }
+  .btn-shield:hover { background: rgba(68,102,170,0.4); }
+
+  .btn-decline {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: 1px solid var(--wood-light);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    transition: all 0.15s;
+  }
+  .btn-decline:hover { border-color: var(--gold-dim); color: var(--text-main); }
+
+  /* Target selection hint */
+  .targeting-hint {
+    width: 100%;
+    max-width: 900px;
+    background: rgba(200,149,42,0.1);
+    border: 1px solid rgba(200,149,42,0.3);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--gold);
+    text-align: center;
+    display: none;
+  }
+  .targeting-hint.active { display: block; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--wood-light); border-radius: 2px; }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .player-card { min-width: 140px; }
+    .card-item { width: 130px; }
+    .action-area { padding: 14px 16px; }
+    .setup-panel { padding: 24px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Setup Screen -->
+<div class="screen active" id="setupScreen">
+  <div class="logo">
+    <div class="logo-zh">游侠</div>
+    <div class="logo-en">Wanderer</div>
+    <div class="logo-tagline">信息博弈 · 子弹轮盘 · 心理战场</div>
+  </div>
+  
+  <div class="setup-panel">
+    <div class="setup-title">设置玩家</div>
+    
+    <div class="player-count-ctrl">
+      <button class="count-btn" id="btnMinus" onclick="changePlayerCount(-1)">−</button>
+      <div class="count-display" id="countDisplay">2</div>
+      <button class="count-btn" id="btnPlus" onclick="changePlayerCount(1)">+</button>
+    </div>
+    
+    <div class="player-inputs" id="playerInputs"></div>
+
+    <!-- Hit rate selector -->
+    <div class="hitrate-section">
+      <div class="hitrate-label">射击命中率</div>
+      <div class="hitrate-options">
+        <div class="hitrate-btn" id="hr60" onclick="selectHitRate(0.6)">
+          <span class="hr-pct">60%</span>
+          <span class="hr-desc">高风险</span>
+        </div>
+        <div class="hitrate-btn" id="hr80" onclick="selectHitRate(0.8)">
+          <span class="hr-pct">80%</span>
+          <span class="hr-desc">标准</span>
+        </div>
+        <div class="hitrate-btn selected" id="hr100" onclick="selectHitRate(1.0)">
+          <span class="hr-pct">100%</span>
+          <span class="hr-desc">必中</span>
+        </div>
+      </div>
+    </div>
+    
+    <button class="btn-primary" onclick="startGame()">开始游戏</button>
+  </div>
+</div>
+
+<!-- Game Screen -->
+<div class="screen" id="gameScreen">
+  <!-- Turn header -->
+  <div class="turn-header">
+    <div class="turn-info">
+      <div class="turn-badge" id="turnBadge">回合 1</div>
+      <div class="current-player-name" id="currentPlayerName">玩家1 的回合</div>
+    </div>
+    <div class="bullet-pool-info" id="bulletPoolInfo"></div>
+  </div>
+
+  <!-- Players area -->
+  <div class="players-area" id="playersArea"></div>
+
+  <!-- Targeting hint -->
+  <div class="targeting-hint" id="targetingHint">👆 选择目标：点击任意玩家（含自己）作为枪口朝向</div>
+
+  <!-- Action area -->
+  <div class="action-area">
+    <div class="action-title">行动阶段</div>
+    
+    <div class="phase-steps" id="phaseSteps">
+      <div class="phase-step" id="step-draw">① 取子弹</div>
+      <div class="phase-step" id="step-target">② 选目标</div>
+      <div class="phase-step" id="step-skill">③ 技能</div>
+      <div class="phase-step" id="step-fire">④ 开枪</div>
+    </div>
+
+    <!-- Bullet pool -->
+    <div id="bulletPoolContainer" style="display:none">
+      <div style="font-size:11px;color:var(--text-dim);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px;">桌面子弹池（点击取一枚）</div>
+      <div class="bullet-pool" id="bulletPool"></div>
+    </div>
+
+    <!-- Gun status -->
+    <div class="gun-area">
+      <div class="gun-visual" id="gunVisual">
+        <svg width="56" height="44" viewBox="0 0 56 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Barrel -->
+          <rect x="2" y="14" width="36" height="7" rx="2" fill="#c8952a"/>
+          <!-- Front grip / barrel extension -->
+          <rect x="2" y="14" width="8" height="11" rx="1.5" fill="#a07020"/>
+          <!-- Magazine well / body -->
+          <rect x="12" y="12" width="20" height="14" rx="2" fill="#b8851e"/>
+          <!-- Magazine -->
+          <rect x="17" y="25" width="8" height="11" rx="2" fill="#9a6e18"/>
+          <!-- Stock -->
+          <path d="M32 14 L52 10 L54 13 L52 21 L32 21 Z" fill="#c8952a"/>
+          <!-- Trigger guard -->
+          <path d="M22 26 Q28 34 34 26" stroke="#7a5a10" stroke-width="2" fill="none"/>
+          <!-- Sight -->
+          <rect x="20" y="10" width="3" height="4" rx="1" fill="#e8b84b"/>
+          <rect x="10" y="12" width="2" height="3" rx="0.5" fill="#e8b84b"/>
+          <!-- Muzzle -->
+          <rect x="0" y="15" width="4" height="5" rx="1" fill="#7a5a10"/>
+        </svg>
+      </div>
+      <div class="gun-status">
+        <div class="gun-label">弹膛状态</div>
+        <div class="gun-bullet-status" id="gunBulletStatus">— 尚未装弹</div>
+        <div class="gun-target-status" id="gunTargetStatus">— 未选目标</div>
+      </div>
+    </div>
+
+    <div class="action-buttons" id="actionButtons">
+      <button class="btn btn-fire" id="btnFire" onclick="doFire()" disabled>🔥 开枪</button>
+      <button class="btn btn-secondary" id="btnPickBullet" onclick="showBulletPick()">取子弹</button>
+    </div>
+  </div>
+
+  <!-- Hand cards -->
+  <div class="hand-area" id="handArea"></div>
+
+  <!-- Log -->
+  <div class="log-area">
+    <div class="hand-label">战场日志</div>
+    <div class="log-box" id="logBox"></div>
+  </div>
+</div>
+
+<!-- Victory Screen -->
+<div class="screen" id="victoryScreen">
+  <div class="victory-content">
+    <div class="victory-trophy">🏆</div>
+    <div class="victory-title" id="victoryName">玩家1</div>
+    <div class="victory-sub">笑到最后的游侠</div>
+    <button class="btn-primary" style="max-width:240px" onclick="backToSetup()">再来一局</button>
+  </div>
+</div>
+
+<!-- Result overlay -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-card">
+    <div class="result-icon" id="resultIcon">💥</div>
+    <div class="result-title" id="resultTitle">命中！</div>
+    <div class="result-desc" id="resultDesc"></div>
+    <button class="btn-primary" onclick="closeResult()" style="max-width:200px">继续</button>
+  </div>
+</div>
+
+<!-- Shield prompt -->
+<div class="shield-prompt" id="shieldPrompt">
+  <div class="shield-card">
+    <div style="font-size:48px;margin-bottom:12px">🛡️</div>
+    <div class="shield-title" id="shieldPromptTitle">使用盾牌？</div>
+    <div class="shield-desc" id="shieldPromptDesc">枪口正对准你，是否使用盾牌卡将子弹反弹？</div>
+    <div class="shield-buttons">
+      <button class="btn-shield" onclick="resolveShield(true)">🛡️ 使用盾牌</button>
+      <button class="btn-decline" onclick="resolveShield(false)">放弃</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  GAME STATE
+// ══════════════════════════════════════════
+const CARD_DEFS = {
+  A: { id:'A', name:'加血卡', icon:'💊', desc:'使用后 +1 HP（满血不可用）', timing:'任意时刻' },
+  B: { id:'B', name:'查看子弹', icon:'🔍', desc:'取弹时可先查看再装入', timing:'任意时刻' },
+  C: { id:'C', name:'威力增加', icon:'⚡', desc:'实心弹变 -2HP；空心弹+2HP（射自己时）', timing:'任意时刻' },
+  D: { id:'D', name:'盾牌', icon:'🛡️', desc:'被选为目标时使用，将子弹反弹给开枪者', timing:'被选目标时' },
+};
+
+let hitRate = 1.0; // default 100%
+let G = null; // game state
+
+function selectHitRate(rate) {
+  hitRate = rate;
+  document.querySelectorAll('.hitrate-btn').forEach(b => b.classList.remove('selected'));
+  const map = {0.6:'hr60', 0.8:'hr80', 1.0:'hr100'};
+  document.getElementById(map[rate]).classList.add('selected');
+}
+
+function createGame(names) {
+  const n = names.length;
+  const totalBullets = n * 6; // 修改：玩家人数*6
+  const solidCount = Math.round(totalBullets * 3 / 5);
+  const emptyCount = totalBullets - solidCount;
+
+  let bullets = [];
+  for(let i=0;i<solidCount;i++) bullets.push('solid');
+  for(let i=0;i<emptyCount;i++) bullets.push('empty');
+  shuffle(bullets);
+
+  // Cards: 2人=4张, 3人=8张, 依此类推
+  const totalCards = (n - 1) * 4;
+  const cardPool = [];
+  const cardTypes = ['A','B','C','D'];
+  while(cardPool.length < totalCards) {
+    for(const t of cardTypes) cardPool.push(t);
+  }
+  cardPool.length = totalCards;
+  shuffle(cardPool);
+
+  const players = names.map((name, i) => {
+    const cards = [cardPool[i*2], cardPool[i*2+1]];
+    return {
+      id: i,
+      name,
+      hp: 3,
+      maxHp: 5,
+      alive: true,
+      // 原始卡牌定义（永久保存，每轮重置 used）
+      cardDefs: cards,
+      cards: cards.map(c => ({...CARD_DEFS[c], used: false})),
+    };
+  });
+
+  return {
+    players,
+    bullets,
+    hitRate,
+    turnIndex: 0,
+    turnCount: 1,
+    phase: 'draw',
+    currentBullet: null,
+    bulletKnown: false,
+    currentTarget: null,
+    powerBoost: false,
+    usedCardThisTurn: null,
+    pendingShieldPlayer: null,
+    shieldUsed: false,
+  };
+}
+
+function shuffle(arr) {
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+}
+
+// ══════════════════════════════════════════
+//  SETUP
+// ══════════════════════════════════════════
+let playerCount = 2;
+
+function changePlayerCount(delta) {
+  playerCount = Math.max(2, Math.min(6, playerCount + delta));
+  document.getElementById('countDisplay').textContent = playerCount;
+  document.getElementById('btnMinus').disabled = playerCount <= 2;
+  document.getElementById('btnPlus').disabled = playerCount >= 6;
+  renderPlayerInputs();
+}
+
+function renderPlayerInputs() {
+  const container = document.getElementById('playerInputs');
+  container.innerHTML = '';
+  for(let i=0;i<playerCount;i++){
+    const row = document.createElement('div');
+    row.className = 'player-row';
+    row.innerHTML = `
+      <div class="player-num">${i+1}</div>
+      <input class="player-input" id="pname${i}" placeholder="玩家 ${i+1} 的名字" value="玩家${i+1}" maxlength="8">
+    `;
+    container.appendChild(row);
+  }
+}
+
+function startGame() {
+  const names = [];
+  for(let i=0;i<playerCount;i++){
+    const v = document.getElementById(`pname${i}`).value.trim() || `玩家${i+1}`;
+    names.push(v);
+  }
+  G = createGame(names);
+  showScreen('gameScreen');
+  const hrText = G.hitRate === 1.0 ? '必中（100%）' : G.hitRate === 0.8 ? '80%命中' : '60%命中';
+  addLog(`<span class="log-system">—— 游侠开局：${names.length}名玩家，${G.bullets.length}颗子弹，射击命中率 ${hrText} ——</span>`);
+  renderGame();
+  beginTurn();
+}
+
+function backToSetup() {
+  showScreen('setupScreen');
+}
+
+// ══════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════
+function renderGame() {
+  renderPlayers();
+  renderBulletPool();
+  renderHand();
+  renderPhase();
+  renderGun();
+  renderHeader();
+}
+
+function renderHeader() {
+  const cur = G.players[G.turnIndex];
+  document.getElementById('turnBadge').textContent = `回合 ${G.turnCount}`;
+  document.getElementById('currentPlayerName').textContent = `${cur.name} 的回合`;
+  const remaining = G.bullets.length;
+  const solid = G.bullets.filter(b=>b==='solid').length;
+  const empty = G.bullets.filter(b=>b==='empty').length;
+  document.getElementById('bulletPoolInfo').innerHTML = 
+    `剩余子弹 ${remaining} 颗<br>实心 ${solid} · 空心 ${empty}`;
+}
+
+function renderPlayers() {
+  const container = document.getElementById('playersArea');
+  container.innerHTML = '';
+  const cur = G.players[G.turnIndex];
+  
+  G.players.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'player-card';
+    if(!p.alive) card.classList.add('is-dead');
+    if(i === G.turnIndex) card.classList.add('is-current');
+    if(i === G.currentTarget && G.phase !== 'draw') card.classList.add('is-target');
+    
+    const canTarget = G.phase === 'target' && p.alive && i !== G.turnIndex;
+    const canTargetSelf = G.phase === 'target' && i === G.turnIndex;
+    if((canTarget || canTargetSelf) && cur.alive) {
+      card.classList.add('can-target');
+      card.onclick = () => selectTarget(i);
+    }
+
+    const hearts = Array.from({length:5}, (_,j) => 
+      `<span class="hp-heart ${j < p.hp ? '' : 'empty'}">♥</span>`
+    ).join('');
+
+    const badges = i === G.turnIndex ? '<span class="you-badge">当前</span>' : '';
+    const deadBadge = !p.alive ? '<span class="dead-badge">出局</span>' : '';
+    const targetInd = i === G.currentTarget && G.phase !== 'draw' ? 
+      '<div class="target-indicator">目标</div>' : '';
+
+    card.innerHTML = `
+      ${targetInd}
+      <div class="player-card-name">${p.name} ${badges}${deadBadge}</div>
+      <div class="hp-row">${hearts}</div>
+      <div class="hp-text">${p.hp} / ${p.maxHp} HP · ${p.cards.filter(c=>!c.used).length}张手牌</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function renderBulletPool() {
+  const container = document.getElementById('bulletPool');
+  container.innerHTML = '';
+  
+  G.bullets.forEach((b, i) => {
+    const el = document.createElement('div');
+    el.className = 'bullet-item unknown';
+    el.title = '取一枚子弹';
+    
+    // If player used B card, they can see
+    if(G.bulletKnown && G.currentBullet) {
+      // already picked, don't show pool picking
+    }
+    
+    el.onclick = () => pickBullet(i);
+    container.appendChild(el);
+  });
+}
+
+function renderHand() {
+  const cur = G.players[G.turnIndex];
+  const container = document.getElementById('handArea');
+  
+  if(!cur.cards || cur.cards.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = `<div class="hand-label">手牌（${cur.name}）<span style="font-size:10px;color:var(--text-dim);margin-left:8px;letter-spacing:0.1em">· 技能每轮可用，回合结束后重置</span></div><div class="hand-cards">`;
+  
+  cur.cards.forEach((c, i) => {
+    let disabled = false;
+    
+    // 仅在合理时机禁用：
+    // A: 满血不可用
+    if(c.id === 'A' && cur.hp >= cur.maxHp) disabled = true;
+    // D: 盾牌为被动，主动点击无效
+    if(c.id === 'D') disabled = true;
+    // B: 已经装弹了就没意义了
+    if(c.id === 'B' && G.currentBullet) disabled = true;
+
+    let classes = 'card-item';
+    if(c.used) classes += ' card-used';
+    else if(disabled) classes += ' card-disabled';
+
+    const clickable = !c.used && !disabled;
+
+    html += `
+      <div class="${classes}" ${clickable ? `onclick="useCard(${i})"` : ''}>
+        <div class="card-timing">${c.timing}</div>
+        <div class="card-icon">${c.icon}</div>
+        <div class="card-name">${c.name}</div>
+        <div class="card-desc">${c.desc}</div>
+        ${c.used ? '<div style="position:absolute;bottom:6px;right:8px;font-size:9px;color:var(--safe);letter-spacing:0.1em">本轮已用</div>' : ''}
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function renderPhase() {
+  const steps = ['draw','target','skill','fire'];
+  const labels = {'draw':'① 取子弹','target':'② 选目标','skill':'③ 技能','fire':'④ 开枪'};
+  const phaseOrder = ['draw','target','skill','fire'];
+  const curIdx = phaseOrder.indexOf(G.phase);
+  
+  phaseOrder.forEach((p, i) => {
+    const el = document.getElementById(`step-${p === 'fire' ? 'fire' : p === 'skill' ? 'skill' : p === 'target' ? 'target' : 'draw'}`);
+    if(!el) return;
+    el.className = 'phase-step';
+    if(i < curIdx) el.classList.add('done');
+    else if(i === curIdx) el.classList.add('active');
+  });
+
+  // Show/hide bullet pool
+  const showPool = G.phase === 'draw' && !G.currentBullet;
+  document.getElementById('bulletPoolContainer').style.display = showPool ? 'block' : 'none';
+
+  // Buttons
+  const btnFire = document.getElementById('btnFire');
+  const btnPick = document.getElementById('btnPickBullet');
+  
+  btnFire.disabled = G.phase !== 'fire' || G.currentTarget === null || !G.currentBullet;
+  btnPick.style.display = (G.phase === 'draw' && !G.currentBullet) ? '' : 'none';
+
+  // Targeting hint
+  const hint = document.getElementById('targetingHint');
+  hint.className = 'targeting-hint' + (G.phase === 'target' ? ' active' : '');
+}
+
+function renderGun() {
+  const gun = document.getElementById('gunVisual');
+  const bulletStatus = document.getElementById('gunBulletStatus');
+  const targetStatus = document.getElementById('gunTargetStatus');
+
+  if(G.currentBullet) {
+    gun.style.filter = 'drop-shadow(0 0 10px rgba(200,149,42,0.6))';
+    if(G.bulletKnown) {
+      if(G.currentBullet === 'solid') {
+        bulletStatus.innerHTML = '<span style="color:var(--red-bullet-glow)">🔴 实心弹（已装填，你知道类型）</span>';
+      } else {
+        bulletStatus.innerHTML = '<span style="color:var(--empty-bullet)">⬜ 空心弹（已装填，你知道类型）</span>';
+      }
+    } else {
+      bulletStatus.innerHTML = '<span style="color:var(--gold)">● 已装填（未知类型）</span>';
+    }
+    if(G.powerBoost) {
+      bulletStatus.innerHTML += ' <span style="color:#ffcc44;font-size:11px">⚡威力+</span>';
+    }
+  } else {
+    gun.style.filter = 'none';
+    bulletStatus.innerHTML = '— 尚未装弹';
+  }
+
+  if(G.currentTarget !== null) {
+    const t = G.players[G.currentTarget];
+    targetStatus.innerHTML = `枪口 → <span style="color:var(--danger)">${t.name}</span>`;
+  } else {
+    targetStatus.textContent = '— 未选目标';
+  }
+  
+  // 命中率显示
+  if(G.hitRate < 1.0) {
+    targetStatus.innerHTML += ` <span style="font-size:11px;color:var(--gold-dim)">命中率 ${Math.round(G.hitRate*100)}%</span>`;
+  }
+}
+
+// ══════════════════════════════════════════
+//  GAME LOGIC
+// ══════════════════════════════════════════
+function beginTurn() {
+  G.phase = 'draw';
+  G.currentBullet = null;
+  G.bulletKnown = false;
+  G.currentTarget = null;
+  G.powerBoost = false;
+  G.shieldUsed = false;
+  G._pendingBCardReveal = false;
+  
+  // 技能卡每回合重置（仅对当前行动玩家）
+  const cur = G.players[G.turnIndex];
+  cur.cards.forEach(c => { c.used = false; });
+  
+  renderGame();
+}
+
+function showBulletPick() {
+  G.phase = 'draw';
+  renderGame();
+}
+
+function pickBullet(idx) {
+  if(G.phase !== 'draw' || G.currentBullet) return;
+  
+  const cur = G.players[G.turnIndex];
+  
+  // Check if player has B card active (they already revealed through useCard)
+  if(G._pendingBCardReveal) {
+    G.currentBullet = G.bullets[idx];
+    G.bulletKnown = true;
+    G.bullets.splice(idx, 1);
+    G._pendingBCardReveal = false;
+    addLog(`<span class="log-player">${cur.name}</span> <span class="log-action">查看了子弹后装入枪膛</span>（已知类型）`);
+    G.phase = 'target';
+    showToast('子弹已装填，选择目标');
+  } else {
+    G.currentBullet = G.bullets[idx];
+    G.bulletKnown = false;
+    G.bullets.splice(idx, 1);
+    addLog(`<span class="log-player">${cur.name}</span> <span class="log-action">从子弹池取一颗子弹装入枪膛</span>`);
+    G.phase = 'target';
+    showToast('子弹已装填，选择枪口朝向');
+  }
+  
+  renderGame();
+}
+
+function selectTarget(targetIdx) {
+  if(G.phase !== 'target') return;
+  const cur = G.players[G.turnIndex];
+  const target = G.players[targetIdx];
+  if(!target.alive) return;
+  
+  G.currentTarget = targetIdx;
+  G.phase = 'skill';
+  
+  addLog(`<span class="log-player">${cur.name}</span> <span class="log-action">将枪口朝向</span> <span class="log-player">${target.name}</span>`);
+  
+  renderGame();
+  showToast('目标已选定，可使用技能卡或直接开枪');
+}
+
+function useCard(cardIdx) {
+  const cur = G.players[G.turnIndex];
+  const card = cur.cards[cardIdx];
+  if(card.used) return;
+
+  if(card.id === 'A') {
+    // Heal — 任意时刻可用
+    if(cur.hp >= cur.maxHp) { showToast('已满血，无法使用加血卡'); return; }
+    cur.hp = Math.min(cur.maxHp, cur.hp + 1);
+    card.used = true;
+    addLog(`<span class="log-player">${cur.name}</span> 使用 💊加血卡，<span class="log-result-heal">HP +1 → ${cur.hp}</span>`);
+    showToast(`HP +1，现在 ${cur.hp} / ${cur.maxHp}`);
+    renderGame();
+  }
+  else if(card.id === 'B') {
+    // Preview bullet — 任意时刻可用（装弹前有意义）
+    if(G.currentBullet) { showToast('已经装弹了，查看子弹卡无效'); return; }
+    G._pendingBCardReveal = true;
+    card.used = true;
+    addLog(`<span class="log-player">${cur.name}</span> 使用 🔍查看子弹卡，取弹时将查看类型`);
+    showToast('取子弹时将可查看类型');
+    // 如果还没进入取弹阶段，跳到取弹
+    if(G.phase !== 'draw') {
+      showToast('请先取子弹以查看类型');
+    }
+    renderGame();
+  }
+  else if(card.id === 'C') {
+    // Power boost — 任意时刻可用（装弹后有实际效果）
+    if(G.powerBoost) { showToast('威力已增加'); return; }
+    G.powerBoost = true;
+    card.used = true;
+    addLog(`<span class="log-player">${cur.name}</span> 使用 ⚡威力增加卡，子弹威力翻倍！`);
+    showToast('威力增加！实心弹→-2HP，空心弹→+2HP（射自己时）');
+    renderGame();
+  }
+  else if(card.id === 'D') {
+    showToast('盾牌为被动技能，被选为目标时会自动弹出');
+  }
+}
+
+function doFire() {
+  if(G.phase !== 'fire' && G.phase !== 'skill') {
+    G.phase = 'fire';
+  }
+  
+  const cur = G.players[G.turnIndex];
+  const targetIdx = G.currentTarget;
+  const target = G.players[targetIdx];
+  
+  // 命中率判定（对射向他人的实心弹有效；空心弹射自己、射他人无命中率概念）
+  // 规则：命中率影响"子弹是否能打到目标"，未命中则子弹打偏，无效果
+  const roll = Math.random();
+  const isHit = (G.hitRate >= 1.0) ? true : (roll < G.hitRate);
+  
+  if(!isHit) {
+    // 子弹打偏，无效果
+    document.getElementById('gunVisual').querySelector('svg').style.filter = 'drop-shadow(0 0 8px rgba(200,149,42,0.5))';
+    document.getElementById('gunVisual').classList.add('firing');
+    setTimeout(() => document.getElementById('gunVisual').classList.remove('firing'), 500);
+    
+    setTimeout(() => {
+      addLog(`<span class="log-player">${cur.name}</span> <span class="log-action">开枪</span> → <span class="log-result-miss">未命中！（命中率 ${Math.round(G.hitRate*100)}%）</span>`);
+      showResult('💨', '未命中！', `${cur.name} 扣下扳机，但子弹打偏了！（命中率 ${Math.round(G.hitRate*100)}%）`);
+      renderGame();
+    }, 600);
+    return;
+  }
+  
+  // Check if target has a shield card
+  const shieldCard = target.cards ? target.cards.find(c => c.id === 'D' && !c.used) : null;
+  
+  if(shieldCard && targetIdx !== G.turnIndex) {
+    // Ask shield player
+    G.pendingShieldPlayer = targetIdx;
+    G._pendingShieldCard = shieldCard;
+    
+    document.getElementById('shieldPromptTitle').textContent = `${target.name}，使用盾牌？`;
+    document.getElementById('shieldPromptDesc').textContent = 
+      `${cur.name} 将枪口对准你（子弹类型未知）。是否使用盾牌卡将子弹反弹？`;
+    document.getElementById('shieldPrompt').classList.add('active');
+  } else {
+    resolveShield(false);
+  }
+}
+
+function resolveShield(useShield) {
+  document.getElementById('shieldPrompt').classList.remove('active');
+  
+  const cur = G.players[G.turnIndex];
+  const targetIdx = G.currentTarget;
+  const target = G.players[targetIdx];
+  
+  let effectTarget = targetIdx;
+  let shieldBlocked = false;
+  
+  if(useShield && G._pendingShieldCard) {
+    G._pendingShieldCard.used = true;
+    effectTarget = G.turnIndex; // bounce back
+    shieldBlocked = true;
+    addLog(`<span class="log-player">${target.name}</span> <span class="log-action">🛡️ 使用盾牌！子弹反弹</span>`);
+  }
+  
+  // Animate gun
+  const gunEl = document.getElementById('gunVisual');
+  gunEl.classList.add('firing');
+  setTimeout(() => gunEl.classList.remove('firing'), 500);
+  
+  // Apply bullet effect
+  setTimeout(() => {
+    applyBulletEffect(G.currentBullet, effectTarget, shieldBlocked, targetIdx);
+  }, 600);
+}
+
+function applyBulletEffect(bullet, effectIdx, shieldBlocked, originalTarget) {
+  const effectPlayer = G.players[effectIdx];
+  const cur = G.players[G.turnIndex];
+  let icon, title, desc;
+  
+  if(bullet === 'solid') {
+    const dmg = G.powerBoost ? 2 : 1;
+    effectPlayer.hp = Math.max(0, effectPlayer.hp - dmg);
+    
+    if(shieldBlocked) {
+      icon = '🛡️💥'; title = '盾牌反弹！';
+      desc = `${effectPlayer.name} 被自己的子弹击中！-${dmg} HP → ${effectPlayer.hp} HP`;
+      addLog(`<span class="log-action">🔴 实心弹</span> 反弹击中 <span class="log-player">${effectPlayer.name}</span>，<span class="log-result-hit">-${dmg} HP → ${effectPlayer.hp}</span>`);
+    } else {
+      icon = '💥'; title = '命中！';
+      desc = `${effectPlayer.name} 被实心弹击中！-${dmg} HP → ${effectPlayer.hp} HP`;
+      addLog(`<span class="log-player">${cur.name}</span> <span class="log-action">🔴 实心弹命中</span> <span class="log-player">${effectPlayer.name}</span>，<span class="log-result-hit">-${dmg} HP → ${effectPlayer.hp}</span>`);
+    }
+    
+    if(effectPlayer.hp <= 0) {
+      effectPlayer.alive = false;
+      desc += `\n⚰️ ${effectPlayer.name} 已出局！`;
+      addLog(`<span class="log-system">⚰️ ${effectPlayer.name} 出局！</span>`);
+    }
+  } else {
+    // empty bullet
+    if(effectIdx === G.turnIndex && !shieldBlocked) {
+      // Self-shot empty = heal
+      const heal = G.powerBoost ? 2 : 1;
+      effectPlayer.hp = Math.min(effectPlayer.maxHp, effectPlayer.hp + heal);
+      icon = '✨'; title = '空心弹加血！';
+      desc = `${effectPlayer.name} 射向自己，空心弹！+${heal} HP → ${effectPlayer.hp} HP`;
+      addLog(`<span class="log-player">${cur.name}</span> <span class="log-action">⬜ 空心弹射向自己</span>，<span class="log-result-heal">+${heal} HP → ${effectPlayer.hp}</span>`);
+    } else {
+      // Empty shot at others = no effect (shield blocked empty = no effect on shooter)
+      icon = '💨'; title = '空心弹！';
+      if(shieldBlocked) {
+        desc = `盾牌反弹了空心弹，但空心弹无法治疗 ${effectPlayer.name}。无效果。`;
+        addLog(`<span class="log-action">⬜ 空心弹被盾牌反弹</span>，对 <span class="log-player">${effectPlayer.name}</span> <span class="log-result-miss">无效果</span>`);
+      } else {
+        desc = `${cur.name} 的子弹是空心弹！对 ${effectPlayer.name} 无效果。`;
+        addLog(`<span class="log-player">${cur.name}</span> <span class="log-action">⬜ 空心弹</span> 射向 <span class="log-player">${G.players[originalTarget].name}</span>，<span class="log-result-miss">无效果</span>`);
+      }
+    }
+  }
+  
+  showResult(icon, title, desc);
+  renderGame();
+}
+
+function showResult(icon, title, desc) {
+  document.getElementById('resultIcon').textContent = icon;
+  document.getElementById('resultTitle').textContent = title;
+  document.getElementById('resultDesc').textContent = desc;
+  document.getElementById('resultOverlay').classList.add('active');
+}
+
+function closeResult() {
+  document.getElementById('resultOverlay').classList.remove('active');
+  
+  // Check victory
+  const alive = G.players.filter(p => p.alive);
+  if(alive.length <= 1) {
+    const winner = alive[0] || G.players[G.turnIndex];
+    document.getElementById('victoryName').textContent = `${winner.name} 获胜！`;
+    showScreen('victoryScreen');
+    return;
+  }
+  
+  // Refill bullets if needed
+  if(G.bullets.length === 0) {
+    const n = G.players.length;
+    const total = n * 6; // 玩家人数*6
+    const solid = Math.round(total * 3 / 5);
+    let bullets = [];
+    for(let i=0;i<solid;i++) bullets.push('solid');
+    for(let i=0;i<total-solid;i++) bullets.push('empty');
+    shuffle(bullets);
+    G.bullets = bullets;
+    addLog(`<span class="log-system">—— 子弹已耗尽，重新洗入 ${total} 颗子弹 ——</span>`);
+    showToast('子弹池已补充');
+  }
+  
+  // Next turn
+  G.turnIndex = nextAliveIndex(G.turnIndex);
+  G.turnCount++;
+  beginTurn();
+}
+
+function nextAliveIndex(cur) {
+  let idx = (cur + 1) % G.players.length;
+  while(!G.players[idx].alive) {
+    idx = (idx + 1) % G.players.length;
+  }
+  return idx;
+}
+
+// Override fire button behavior for phase fix
+document.getElementById('btnFire').addEventListener('click', () => {
+  if(G.phase === 'skill') {
+    G.phase = 'fire';
+    doFire();
+  }
+});
+
+// Fix: re-override to avoid double binding
+document.getElementById('btnFire').onclick = () => {
+  if(G.phase === 'skill' || G.phase === 'fire') {
+    doFire();
+  }
+};
+
+// ══════════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function addLog(html) {
+  const box = document.getElementById('logBox');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = html;
+  box.appendChild(entry);
+  box.scrollTop = box.scrollHeight;
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Phase step fix
+document.getElementById('step-fire').id = 'step-fire';
+document.getElementById('step-skill').id = 'step-skill';
+
+// Render phase correctly
+function renderPhase() {
+  const phaseOrder = ['draw','target','skill','fire'];
+  const curIdx = phaseOrder.indexOf(G ? G.phase : 'draw');
+  const ids = ['step-draw','step-target','step-skill','step-fire'];
+  
+  phaseOrder.forEach((p, i) => {
+    const el = document.getElementById(ids[i]);
+    if(!el) return;
+    el.className = 'phase-step';
+    if(i < curIdx) el.classList.add('done');
+    else if(i === curIdx) el.classList.add('active');
+  });
+
+  if(!G) return;
+
+  const showPool = G.phase === 'draw' && !G.currentBullet;
+  document.getElementById('bulletPoolContainer').style.display = showPool ? 'block' : 'none';
+
+  const btnFire = document.getElementById('btnFire');
+  const btnPick = document.getElementById('btnPickBullet');
+  
+  const canFire = (G.phase === 'skill' || G.phase === 'fire') && G.currentTarget !== null && !!G.currentBullet;
+  btnFire.disabled = !canFire;
+  btnPick.style.display = (G.phase === 'draw' && !G.currentBullet) ? '' : 'none';
+
+  const hint = document.getElementById('targetingHint');
+  hint.className = 'targeting-hint' + (G.phase === 'target' ? ' active' : '');
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+renderPlayerInputs();
+</script>
+</body>
+</html>
